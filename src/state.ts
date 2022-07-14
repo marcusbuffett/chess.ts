@@ -53,7 +53,11 @@ import {
 } from './utils'
 
 /* this function is used to uniquely identify ambiguous moves */
-export function getDisambiguator(state: State, move: HexMove, sloppy: boolean): string {
+export function getDisambiguator(
+  state: State,
+  move: HexMove,
+  sloppy: boolean
+): string {
   const moves = generateMoves(state, { legal: !sloppy })
 
   const from = move.from
@@ -121,7 +125,8 @@ export function getFen(state: State): string {
       const color = piece.color
       const piece_type = piece.type
 
-      fen += color === WHITE ? piece_type.toUpperCase() : piece_type.toLowerCase()
+      fen +=
+        color === WHITE ? piece_type.toUpperCase() : piece_type.toLowerCase()
     }
 
     if ((i + 1) & 0x88) {
@@ -154,9 +159,40 @@ export function getFen(state: State): string {
 
   /* do we have an empty castling flag? */
   cflags = cflags || '-'
-  const epflags = state.ep_square === EMPTY ? '-' : algebraic(state.ep_square)
 
-  return [fen, state.turn, cflags, epflags, state.half_moves, state.move_number].join(' ')
+  let fen_ep_square = state.ep_square
+
+  if (true && fen_ep_square !== EMPTY) {
+    let found_ep = false
+    const legal_moves = generateMoves(state, {
+      legal: true,
+      // piece: 'p',
+    })
+
+    for (const i in legal_moves) {
+      const legal_move = legal_moves[i]
+
+      if (legal_move.flags & BITS.EP_CAPTURE) {
+        found_ep = true
+
+        break
+      }
+    }
+
+    if (!found_ep) {
+      fen_ep_square = EMPTY
+    }
+  }
+  const epflags = fen_ep_square === EMPTY ? '-' : algebraic(fen_ep_square)
+
+  return [
+    fen,
+    state.turn,
+    cflags,
+    epflags,
+    state.half_moves,
+    state.move_number,
+  ].join(' ')
 }
 
 export function loadFen(fen: string): State | null {
@@ -219,15 +255,12 @@ export function getPgn(
   header: Record<string, string>,
   comments: Comments,
   history: GameHistory[],
-  options: { newline_char?: string, max_width?: number } = {}
+  options: { newline_char?: string; max_width?: number } = {}
 ): string {
   /* using the specification from http://www.chessclub.com/help/PGN-spec
    * example for html usage: .pgn({ max_width: 72, newline_char: "<br />" })
    */
-  const {
-    newline_char: newline = '\n',
-    max_width = 0
-  } = options
+  const { newline_char: newline = '\n', max_width = 0 } = options
 
   const result: string[] = []
   let header_exists = false
@@ -305,7 +338,7 @@ export function getPgn(
     return result.join('') + moves.join(' ')
   }
 
-  const strip = function() {
+  const strip = function () {
     if (result.length > 0 && result[result.length - 1] === ' ') {
       result.pop()
       return true
@@ -368,13 +401,13 @@ export function getPgn(
 
 export function loadPgn(
   pgn: string,
-  options: { newline_char?: string, sloppy?: boolean } = {}
+  options: { newline_char?: string; sloppy?: boolean } = {}
 ): [State, Record<string, string>, Comments, GameHistory[]] | null {
   const {
     newline_char = '\r?\n',
     // allow the user to specify the sloppy move parser to work around over
     // disambiguation bugs in Fritz and Chessbase
-    sloppy = false
+    sloppy = false,
   } = options
 
   const mask = (str: string): string => {
@@ -383,7 +416,7 @@ export function loadPgn(
 
   const parse_pgn_header = (
     header: string,
-    options: { newline_char: string, sloppy: boolean }
+    options: { newline_char: string; sloppy: boolean }
   ): Record<string, string> => {
     const newline_char = options.newline_char
     const header_obj: { [key: string]: string } = {}
@@ -415,7 +448,9 @@ export function loadPgn(
   )
 
   // If no header given, begin with moves.
-  const header_string = header_regex.test(pgn) ? (header_regex.exec(pgn) as string[])[1] : ''
+  const header_string = header_regex.test(pgn)
+    ? (header_regex.exec(pgn) as string[])[1]
+    : ''
 
   // Put the board in the starting position
   let state = loadFen(DEFAULT_POSITION) as State
@@ -446,9 +481,8 @@ export function loadPgn(
    * as a convenience for modern users */
 
   const toHex = (str: string): string => {
-    return Array
-      .from(str)
-      .map(function(c) {
+    return Array.from(str)
+      .map(function (c) {
         /* encodeURI doesn't transform most ASCII characters,
          * so we handle these ourselves */
         return c.charCodeAt(0) < 128
@@ -464,12 +498,12 @@ export function loadPgn(
       : decodeURIComponent('%' + str?.match(/.{1,2}/g)?.join('%'))
   }
 
-  const encodeComment = function(str: string) {
+  const encodeComment = function (str: string) {
     str = str.replace(new RegExp(mask(newline_char), 'g'), ' ')
     return `{${toHex(str.slice(1, str.length - 1))}}`
   }
 
-  const decodeComment = function(str: string) {
+  const decodeComment = function (str: string) {
     if (str.startsWith('{') && str.endsWith('}')) {
       return fromHex(str.slice(1, str.length - 1))
     }
@@ -523,7 +557,10 @@ export function loadPgn(
       continue
     }
 
-    if (half_move === tokens.length - 1 && POSSIBLE_RESULTS.indexOf(token) !== -1) {
+    if (
+      half_move === tokens.length - 1 &&
+      POSSIBLE_RESULTS.indexOf(token) !== -1
+    ) {
       if (Object.keys(header).length && typeof header.Result === 'undefined') {
         header['Result'] = token
       }
@@ -581,7 +618,8 @@ export function clonePiece(piece: Piece): Piece {
 
 export function putPiece(
   prevState: State,
-  piece: { type?: string, color?: string }, square?: string
+  piece: { type?: string; color?: string },
+  square?: string
 ): State | null {
   let { type, color } = piece
 
@@ -602,9 +640,11 @@ export function putPiece(
   const state = prevState.clone()
   /* don't let the user place more than one king */
   const sq = SQUARES[square]
-  if (type === KING &&
+  if (
+    type === KING &&
     state.kings[color] !== EMPTY &&
-    state.kings[color] !== sq) {
+    state.kings[color] !== sq
+  ) {
     return null
   }
 
@@ -637,16 +677,22 @@ export function removePiece(prevState: State, square?: string): State | null {
 
 export function generateMoves(
   state: State,
-  options: { legal?: boolean, square?: string } = {}
+  options: { legal?: boolean; square?: string } = {}
 ): HexMove[] {
   const { legal = true } = options
-  const add_move = (board: Board, moves: HexMove[], from: number, to: number, flags: number) => {
+  const add_move = (
+    board: Board,
+    moves: HexMove[],
+    from: number,
+    to: number,
+    flags: number
+  ) => {
     /* if pawn promotion */
     const piece = board[from]
     if (
       piece &&
-        piece.type === PAWN &&
-        (rank(to) === RANK_8 || rank(to) === RANK_1)
+      piece.type === PAWN &&
+      (rank(to) === RANK_8 || rank(to) === RANK_1)
     ) {
       const pieces = [QUEEN, ROOK, BISHOP, KNIGHT]
       for (let i = 0, len = pieces.length; i < len; i++) {
@@ -750,12 +796,18 @@ export function generateMoves(
 
       if (
         !state.board[castling_from + 1] &&
-          !state.board[castling_to] &&
-          !isAttacked(state, them, state.kings[us]) &&
-          !isAttacked(state, them, castling_from + 1) &&
-          !isAttacked(state, them, castling_to)
+        !state.board[castling_to] &&
+        !isAttacked(state, them, state.kings[us]) &&
+        !isAttacked(state, them, castling_from + 1) &&
+        !isAttacked(state, them, castling_to)
       ) {
-        add_move(state.board, moves, state.kings[us], castling_to, BITS.KSIDE_CASTLE)
+        add_move(
+          state.board,
+          moves,
+          state.kings[us],
+          castling_to,
+          BITS.KSIDE_CASTLE
+        )
       }
     }
 
@@ -766,13 +818,19 @@ export function generateMoves(
 
       if (
         !state.board[castling_from - 1] &&
-          !state.board[castling_from - 2] &&
-          !state.board[castling_from - 3] &&
-          !isAttacked(state, them, state.kings[us]) &&
-          !isAttacked(state, them, castling_from - 1) &&
-          !isAttacked(state, them, castling_to)
+        !state.board[castling_from - 2] &&
+        !state.board[castling_from - 3] &&
+        !isAttacked(state, them, state.kings[us]) &&
+        !isAttacked(state, them, castling_from - 1) &&
+        !isAttacked(state, them, castling_to)
       ) {
-        add_move(state.board, moves, state.kings[us], castling_to, BITS.QSIDE_CASTLE)
+        add_move(
+          state.board,
+          moves,
+          state.kings[us],
+          castling_to,
+          BITS.QSIDE_CASTLE
+        )
       }
     }
   }
@@ -809,7 +867,7 @@ export function generateMoves(
 export function moveToSan(
   state: State,
   move: HexMove,
-  options: { sloppy?: boolean, checkPromotion?: boolean } = {}
+  options: { sloppy?: boolean; checkPromotion?: boolean } = {}
 ): string {
   const { sloppy = false, checkPromotion = true } = options
   let output = ''
@@ -854,7 +912,7 @@ export function moveToSan(
 export function sanToMove(
   state: State,
   move: string,
-  options: { sloppy?: boolean, checkPromotion?: boolean } = {}
+  options: { sloppy?: boolean; checkPromotion?: boolean } = {}
 ): HexMove | null {
   const { sloppy = false, checkPromotion = true } = options
 
@@ -882,20 +940,24 @@ export function sanToMove(
     // try the strict parser first, then the sloppy parser if requested
     // by the user
     const san = moveToSan(state, moves[i], { checkPromotion })
-    if (cleanMove === strippedSan(san) ||
-      (sloppy && cleanMove === strippedSan(moveToSan(state, moves[i], options)))) {
+    if (
+      cleanMove === strippedSan(san) ||
+      (sloppy && cleanMove === strippedSan(moveToSan(state, moves[i], options)))
+    ) {
       return moves[i]
     }
     if (
       from &&
-        to &&
-        isSquare(from) &&
-        isSquare(to) &&
-        matches &&
-        (!piece || piece.toLowerCase() == moves[i].piece) &&
-        SQUARES[from] == moves[i].from &&
-        SQUARES[to] == moves[i].to &&
-        (!checkPromotion || !promotion || promotion.toLowerCase() == moves[i].promotion)
+      to &&
+      isSquare(from) &&
+      isSquare(to) &&
+      matches &&
+      (!piece || piece.toLowerCase() == moves[i].piece) &&
+      SQUARES[from] == moves[i].from &&
+      SQUARES[to] == moves[i].to &&
+      (!checkPromotion ||
+        !promotion ||
+        promotion.toLowerCase() == moves[i].promotion)
     ) {
       return moves[i]
     }
@@ -926,7 +988,11 @@ export function makePretty(state: State, ugly_move: HexMove): Move {
   }
 }
 
-export function isAttacked(state: State, color: string, square: number): boolean {
+export function isAttacked(
+  state: State,
+  color: string,
+  square: number
+): boolean {
   for (let i = SQUARES.a8; i <= SQUARES.h1; i++) {
     /* did we run off the end of the board */
     if (i & 0x88) {
@@ -990,7 +1056,7 @@ export function inStalemate(state: State): boolean {
 }
 
 export function insufficientMaterial(state: State): boolean {
-  const pieces: {[key: string]: number} = {}
+  const pieces: { [key: string]: number } = {}
   const bishops = []
   let num_pieces = 0
   let sq_color = 0
@@ -1018,7 +1084,7 @@ export function insufficientMaterial(state: State): boolean {
   } else if (
     /* k vs. kn .... or .... k vs. kb */
     num_pieces === 3 &&
-      (pieces[BISHOP] === 1 || pieces[KNIGHT] === 1)
+    (pieces[BISHOP] === 1 || pieces[KNIGHT] === 1)
   ) {
     return true
   } else if (num_pieces === pieces[BISHOP] + 2) {
@@ -1055,7 +1121,11 @@ export function makeMove(prevState: State, move: HexMove): State {
   }
 
   /* if pawn promotion, replace with new piece */
-  if (move.flags & BITS.PROMOTION && move.promotion && isPieceSymbol(move.promotion)) {
+  if (
+    move.flags & BITS.PROMOTION &&
+    move.promotion &&
+    isPieceSymbol(move.promotion)
+  ) {
     state.board[move.to] = { type: move.promotion, color: us }
   }
 
@@ -1086,7 +1156,7 @@ export function makeMove(prevState: State, move: HexMove): State {
     for (let i = 0, len = ROOKS[us].length; i < len; i++) {
       if (
         move.from === ROOKS[us][i].square &&
-          state.castling[us] & ROOKS[us][i].flag
+        state.castling[us] & ROOKS[us][i].flag
       ) {
         state.castling[us] ^= ROOKS[us][i].flag
         break
@@ -1099,7 +1169,7 @@ export function makeMove(prevState: State, move: HexMove): State {
     for (let i = 0, len = ROOKS[them].length; i < len; i++) {
       if (
         move.to === ROOKS[them][i].square &&
-          state.castling[them] & ROOKS[them][i].flag
+        state.castling[them] & ROOKS[them][i].flag
       ) {
         state.castling[them] ^= ROOKS[them][i].flag
         break
@@ -1134,13 +1204,19 @@ export function makeMove(prevState: State, move: HexMove): State {
   return state
 }
 
-export function buildMove(state: State, from: number, to: number, flags: number, promotion?: string): HexMove {
+export function buildMove(
+  state: State,
+  from: number,
+  to: number,
+  flags: number,
+  promotion?: string
+): HexMove {
   const move: HexMove = {
     color: state.turn,
     from: from,
     to: to,
     flags: flags,
-    piece: (state.board[from] as Piece).type
+    piece: (state.board[from] as Piece).type,
   }
 
   if (promotion && isPieceSymbol(promotion)) {
@@ -1157,7 +1233,7 @@ export function buildMove(state: State, from: number, to: number, flags: number,
 }
 
 export function ascii(board: Board, eol = '\n'): string {
-  const pieces = RANKS.map(rank => {
+  const pieces = RANKS.map((rank) => {
     const rankPieces = board.slice(rank * 16, rank * 16 + 8)
     // Use a loop because `map` skips empty indexes
     const row: string[] = []
@@ -1201,7 +1277,7 @@ export function getBoard(board: Board): (Piece | null)[][] {
 export function validateMove(
   state: State,
   move: string | PartialMove,
-  options: { sloppy?: boolean, checkPromotion?: boolean } = {}
+  options: { sloppy?: boolean; checkPromotion?: boolean } = {}
 ): HexMove | null {
   // Allow the user to specify the sloppy move parser to work around over
   // disambiguation bugs in Fritz and Chessbase
@@ -1215,9 +1291,10 @@ export function validateMove(
     for (const moveObj of moves) {
       if (
         move.from === algebraic(moveObj.from) &&
-          move.to === algebraic(moveObj.to) &&
-          (!checkPromotion || !('promotion' in moveObj) ||
-            move.promotion === moveObj.promotion)
+        move.to === algebraic(moveObj.to) &&
+        (!checkPromotion ||
+          !('promotion' in moveObj) ||
+          move.promotion === moveObj.promotion)
       ) {
         return moveObj
       }
